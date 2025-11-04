@@ -483,6 +483,13 @@
   window.addEventListener('load', ()=>{ if(!localStorage.getItem(PASS_KEY)) localStorage.setItem(PASS_KEY, DEFAULT_PASS); loginOverlay.style.display='flex'; });
 
 })();
+
 </script>
+  <script src="https://www.gstatic.com/firebasejs/9.24.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.24.0/firebase-firestore-compat.js"></script>
+
+  <script src="firebase-init.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
+
