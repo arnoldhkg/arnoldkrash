@@ -199,8 +199,54 @@
   let current = {subjectId:null, monthId:null, weekId:null};
 
   // Helpers
-  function loadData(){ try{ const raw = localStorage.getItem(STORAGE_KEY); if(!raw){ const base = {history:[],math:[],cs:[],ms:[]}; localStorage.setItem(STORAGE_KEY, JSON.stringify(base)); return base;} return JSON.parse(raw);}catch(e){console.error(e);return {history:[],math:[],cs:[],ms:[]}} }
-  function saveData(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+ // ====== GITHUB ВЕРСИЯ ======
+async function loadData(){
+  try {
+    const res = await fetch(`https://api.github.com/repos/arnoldhkg/arnoldkrash/contents/data.json`, {
+      headers: {
+        "Authorization": "token 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",
+        "Accept": "application/vnd.github.v3+json"
+      }
+    });
+    if (!res.ok) throw new Error("GitHub fetch error");
+    const json = await res.json();
+    const decoded = atob(json.content.replace(/\n/g,""));
+    const data = JSON.parse(decoded);
+    sessionStorage.setItem("GITHUB_SHA", json.sha);
+    console.log("✅ Данные загружены из GitHub");
+    return data;
+  } catch (e) {
+    console.error("Ошибка загрузки:", e);
+    return { "__subjects": [] };
+  }
+}
+
+async function saveData(){
+  try {
+    const sha = sessionStorage.getItem("GITHUB_SHA");
+    const body = {
+      message: "update data.json via site",
+      content: btoa(JSON.stringify(data, null, 2)),
+      sha: sha
+    };
+    const res = await fetch(`https://api.github.com/repos/ТВОЙ_ЛОГИН/ТВОЙ_РЕПО/contents/data.json`, {
+      method: "PUT",
+      headers: {
+        "Authorization": "token ghp_ТВОЙ_ТОКЕН",
+        "Accept": "application/vnd.github.v3+json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
+    });
+    const json = await res.json();
+    sessionStorage.setItem("GITHUB_SHA", json.content.sha);
+    console.log("💾 Сохранено в GitHub");
+  } catch (e) {
+    console.error("Ошибка сохранения:", e);
+    alert("❌ Қате: GitHub-қа сақтау мүмкін емес");
+  }
+}
+
   function loadPass(){ return localStorage.getItem(PASS_KEY) || DEFAULT_PASS; }
   function savePass(p){ localStorage.setItem(PASS_KEY, p); }
   function saveLast(){ localStorage.setItem(LAST_KEY, JSON.stringify(current)); }
