@@ -22,7 +22,13 @@
         {
           "id": "m_yqchoe9",
           "title": "Ай 1",
-          "weeks": []
+          "weeks": [
+            {
+              "id": "w_6a3s5yw",
+              "title": "Апта 1",
+              "resources": []
+            }
+          ]
         },
         {
           "id": "m_p32phaz",
