@@ -32,6 +32,17 @@
               "id": "w_lt1g1l7",
               "title": "Апта 2",
               "resources": []
+            },
+            {
+              "id": "w_2li001f",
+              "title": "Апта 3",
+              "resources": [
+                {
+                  "id": "r_laxxhgq",
+                  "title": "аыва",
+                  "url": "ыаыва"
+                }
+              ]
             }
           ]
         },
