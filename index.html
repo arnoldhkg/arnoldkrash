@@ -229,10 +229,10 @@ async function saveData(){
       content: btoa(JSON.stringify(data, null, 2)),
       sha: sha
     };
-    const res = await fetch(`https://api.github.com/repos/ТВОЙ_ЛОГИН/ТВОЙ_РЕПО/contents/data.json`, {
+    const res = await fetch(`https://api.github.com/repos/arnoldhkg/arnoldkrash/contents/data.json`, {
       method: "PUT",
       headers: {
-        "Authorization": "token ghp_ТВОЙ_ТОКЕН",
+        "Authorization": "token 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",
         "Accept": "application/vnd.github.v3+json",
         "Content-Type": "application/json"
       },
