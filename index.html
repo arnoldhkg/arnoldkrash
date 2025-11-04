@@ -157,6 +157,16 @@
           <input id="currentPass" readonly />
           <label style="margin-top:8px">Жаңа құпия код (редактор ғана)</label>
           <input id="newPass" placeholder="Жаңа код" />
+          <hr style="opacity:0.06;margin:12px 0"/>
+          <label style="margin-top:8px">Временный (сессионный) GitHub PAT</label>
+          <input id="sessionPat" placeholder="ghp_xxx — токен хранится только в sessionStorage" />
+          <div style="display:flex;gap:8px;margin-top:8px;justify-content:flex-end">
+            <button class="btn" id="applyPatBtn">Применить PAT</button>
+            <button class="btn ghost" id="removePatBtn">Удалить PAT</button>
+          </div>
+          <div style="margin-top:8px;color:var(--muted);font-size:13px">
+            <div id="patStatus">PAT: не установлен</div>
+          </div>
           <div style="display:flex;gap:8px;margin-top:8px;justify-content:flex-end">
             <button class="btn" id="savePassBtn">Сақтау</button>
             <button class="btn ghost" id="closeSettings">Жабу</button>
@@ -174,6 +184,8 @@
   const LAST_KEY = 'juz40tar_last_v1';
   const MAX_MONTHS = 7; const MAX_WEEKS = 4;
   const DEFAULT_PASS = '667667';
+  // GITHUB_TOKEN is now managed via sessionStorage through the UI (do not hardcode)
+  let GITHUB_TOKEN = sessionStorage.getItem('JUZ40TAR_SESSION_PAT') || null;
 
   // Elements
   const loginOverlay = document.getElementById('loginOverlay');
@@ -194,183 +206,273 @@
   const newPass = document.getElementById('newPass');
   const savePassBtn = document.getElementById('savePassBtn');
 
+  // PAT UI elements
+  const sessionPat = document.getElementById('sessionPat');
+  const applyPatBtn = document.getElementById('applyPatBtn');
+  const removePatBtn = document.getElementById('removePatBtn');
+  const patStatus = document.getElementById('patStatus');
+
   let isEditor = false;
   let data = null;
   let current = {subjectId:null, monthId:null, weekId:null};
 
-  // Helpers
- // ====== GITHUB ВЕРСИЯ ======
-async function loadData(){
-  try {
-    const res = await fetch(`https://api.github.com/repos/arnoldhkg/arnoldkrash/contents/data.json`, {
-      headers: {
-        "Authorization": "token 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",
-        "Accept": "application/vnd.github.v3+json"
+  // Helpers: safe UTF-8 <-> base64 encoding (avoid btoa errors)
+  function encodeToBase64(str) {
+    if (typeof TextEncoder !== 'undefined') {
+      const bytes = new TextEncoder().encode(str);
+      let binary = '';
+      const chunk = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunk) {
+        binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunk)));
       }
-    });
-    if (!res.ok) throw new Error("GitHub fetch error");
-    const json = await res.json();
-    const decoded = atob(json.content.replace(/\n/g,""));
-    const data = JSON.parse(decoded);
-    sessionStorage.setItem("GITHUB_SHA", json.sha);
-    console.log("✅ Данные загружены из GitHub");
-    return data;
-  } catch (e) {
-    console.error("Ошибка загрузки:", e);
-    return { "__subjects": [] };
+      return btoa(binary);
+    }
+    return btoa(unescape(encodeURIComponent(str)));
   }
-}
+  function decodeFromBase64(b64) {
+    if (!b64) return '';
+    if (typeof TextDecoder !== 'undefined') {
+      const binary = atob(b64.replace(/\s+/g, ''));
+      const len = binary.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+      return new TextDecoder().decode(bytes);
+    }
+    return decodeURIComponent(escape(atob(b64)));
+  }
 
-async function saveData(){
-  try {
-    const sha = sessionStorage.getItem("GITHUB_SHA");
+  // Local storage load/save fallback
+  function loadLocal() {
+    try {
+      const txt = localStorage.getItem(STORAGE_KEY);
+      if (!txt) return { "__subjects": [] };
+      return JSON.parse(txt);
+    } catch (e) {
+      console.warn('local load error', e);
+      return { "__subjects": [] };
+    }
+  }
+  function saveLocal() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      console.log('💾 Сохранено в localStorage');
+    } catch (e) {
+      console.error('local save error', e);
+    }
+  }
+
+  // GitHub Contents API helpers (optional). Must provide GITHUB_TOKEN to write.
+  async function loadDataFromGitHub() {
+    const url = 'https://api.github.com/repos/arnoldhkg/arnoldkrash/contents/data.json';
+    const headers = { Accept: 'application/vnd.github.v3+json' };
+    if (GITHUB_TOKEN) headers.Authorization = `token ${GITHUB_TOKEN}`;
+    const res = await fetch(url, { headers });
+    if (!res.ok) {
+      const txt = await res.text().catch(()=>res.statusText);
+      throw new Error(`GitHub fetch error: ${res.status} ${res.statusText} ${txt}`);
+    }
+    const json = await res.json();
+    const decoded = decodeFromBase64(json.content);
+    sessionStorage.setItem("GITHUB_SHA", json.sha || '');
+    return JSON.parse(decoded);
+  }
+  async function saveDataToGitHub() {
+    if (!GITHUB_TOKEN) throw new Error('GitHub token not set; refusing to save to GitHub from browser.');
+    const sha = sessionStorage.getItem("GITHUB_SHA") || null;
     const body = {
       message: "update data.json via site",
-      content: btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2)))),
-      sha: sha
+      content: encodeToBase64(JSON.stringify(data, null, 2)),
     };
-    const res = await fetch(`https://api.github.com/repos/arnoldhkg/arnoldkrash/contents/data.json`, {
-      method: "PUT",
+    if (sha) body.sha = sha;
+    const res = await fetch('https://api.github.com/repos/arnoldhkg/arnoldkrash/contents/data.json', {
+      method: 'PUT',
       headers: {
-        "Authorization": "token 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",
-        "Accept": "application/vnd.github.v3+json",
-        "Content-Type": "application/json"
+        Accept: 'application/vnd.github.v3+json',
+        Authorization: `token ${GITHUB_TOKEN}`,
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(body)
     });
+    if (!res.ok) {
+      const txt = await res.text().catch(()=>res.statusText);
+      throw new Error(`GitHub save error: ${res.status} ${res.statusText} ${txt}`);
+    }
     const json = await res.json();
-    sessionStorage.setItem("GITHUB_SHA", json.content.sha);
-    console.log("💾 Сохранено в GitHub");
-  } catch (e) {
-    console.error("Ошибка сохранения:", e);
-    alert("❌ Қате: GitHub-қа сақтау мүмкін емес");
+    sessionStorage.setItem("GITHUB_SHA", json.content && json.content.sha ? json.content.sha : '');
+    return json;
   }
-}
+
+  // Primary loadData: attempt GitHub if token set, otherwise local
+  async function loadData(){
+    try {
+      if (GITHUB_TOKEN) {
+        const githubData = await loadDataFromGitHub();
+        console.log("✅ Данные загружены из GitHub");
+        return githubData;
+      } else {
+        console.log("ℹ️ GitHub token not set — using localStorage");
+        return loadLocal();
+      }
+    } catch (e) {
+      console.error("Ошибка загрузки:", e);
+      return loadLocal();
+    }
+  }
+
+  // Primary saveData: attempt GitHub if token set, otherwise local
+  async function saveData(){
+    if (!data) data = { "__subjects": [] };
+    if (!data.__subjects) data.__subjects = [];
+    try {
+      if (GITHUB_TOKEN) {
+        await saveDataToGitHub();
+        console.log("💾 Сохранено в GitHub");
+      } else {
+        saveLocal();
+      }
+    } catch (e) {
+      console.error("Ошибка сохранения:", e);
+      try {
+        saveLocal();
+        alert("GitHub сақталмады — локальды түрде сақталды.");
+      } catch (err) {
+        alert("Сақтау мүмкін болмады");
+      }
+    }
+  }
 
   function loadPass(){ return localStorage.getItem(PASS_KEY) || DEFAULT_PASS; }
   function savePass(p){ localStorage.setItem(PASS_KEY, p); }
   function saveLast(){ localStorage.setItem(LAST_KEY, JSON.stringify(current)); }
   function loadLast(){ try{ const v = localStorage.getItem(LAST_KEY); return v?JSON.parse(v):{} }catch(e){return{}} }
   function uid(p='id'){ return p + '_' + Math.random().toString(36).slice(2,9); }
-  function esc(s){ if(!s) return ''; return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c])); }
+  function esc(s){ if(s === undefined || s === null) return ''; return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c])); }
+
+  // PAT UI functions
+  function updatePatStatus(){
+    GITHUB_TOKEN = sessionStorage.getItem('JUZ40TAR_SESSION_PAT') || null;
+    patStatus.textContent = GITHUB_TOKEN ? 'PAT: установлен (сессионный)' : 'PAT: не установлен';
+    // clear visible input for safety
+    sessionPat.value = '';
+  }
+  applyPatBtn.addEventListener('click', ()=>{
+    const v = sessionPat.value.trim();
+    if(!v) return alert('Вставьте PAT');
+    sessionStorage.setItem('JUZ40TAR_SESSION_PAT', v);
+    updatePatStatus();
+    alert('PAT применён (сохраняется в sessionStorage до закрытия вкладки).');
+    // update in-memory token
+    GITHUB_TOKEN = v;
+  });
+  removePatBtn.addEventListener('click', ()=>{
+    sessionStorage.removeItem('JUZ40TAR_SESSION_PAT');
+    updatePatStatus();
+    GITHUB_TOKEN = null;
+    alert('PAT удалён из сессии.');
+  });
 
   // Init
   async function init(){
-  data = await loadData();
-  const last = loadLast();
-  if(last.subjectId) current = last;
-  renderSubjects();
-  updateModeLabel();
-  renderMain();
-}
-
+    updatePatStatus();
+    data = await loadData();
+    if(!data || typeof data !== 'object') data = { "__subjects": [] };
+    const last = loadLast();
+    if(last.subjectId) current = last;
+    renderSubjects();
+    updateModeLabel();
+    renderMain();
+  }
 
   // Role handlers
   roleView.addEventListener('click', ()=>{ isEditor=false; loginOverlay.style.display='none'; init(); });
   roleEdit.addEventListener('click', ()=>{ const pass = localStorage.getItem(PASS_KEY) || DEFAULT_PASS; if(passInput.value.trim()===pass){ isEditor=true; loginOverlay.style.display='none'; init(); } else alert('Қате код'); });
 
-  // Subjects
-  addSubjectBtn.addEventListener('click', ()=>{ if(!isEditor){ alert('Тек редактор қосады'); return; } const name = prompt('Пәннің атауы (мыс: Математика)') || 'Жаңа пән'; // add
-    const id = uid('s'); data[id] = data[id] || []; // don't use dynamic keys in data object, keep subjects as map? We'll store subjects array in separate structure
-    // For simplicity store subjects as array of objects under special key __subjects
+  // Subjects and other UI logic (unchanged, but robustified)
+  addSubjectBtn.addEventListener('click', ()=>{ if(!isEditor){ alert('Тек редактор қосады'); return; } const name = prompt('Пәннің атауы (мыс: Математика)') || 'Жаңа пән';
     if(!data.__subjects) data.__subjects = [];
+    const id = uid('s');
     data.__subjects.push({id,name,months:[]});
     saveData(); renderSubjects(); });
 
-  function ensureSubjects(){ if(!data.__subjects){ // initialise default subjects
-      data.__subjects = [
-        {id:'history',name:'Тарих',months:[]},
-        {id:'math',name:'Математика',months:[]},
-        {id:'cs',name:'Информатика',months:[]},
-        {id:'ms',name:'МС',months:[]}
-      ]; saveData(); }
+  function ensureSubjects(){ if(!data.__subjects || !Array.isArray(data.__subjects)){ data.__subjects = [
+      {id:'history',name:'Тарих',months:[]},
+      {id:'math',name:'Математика',months:[]},
+      {id:'cs',name:'Информатика',months:[]},
+      {id:'ms',name:'МС',months:[]}
+    ]; saveData(); }
   }
 
   function renderSubjects(filter=''){ ensureSubjects(); subjectsList.innerHTML=''; const list = data.__subjects.filter(s=> s.name.toLowerCase().includes(filter.toLowerCase())); list.forEach(s=>{
-    const el = document.createElement('div'); el.className='subject-item'; el.innerHTML = `<div><strong>${esc(s.name)}</strong><div style="color:var(--muted)">Айлар: ${s.months.length}</div></div>`;
+    const el = document.createElement('div'); el.className='subject-item'; el.setAttribute('data-name', s.name);
+    el.innerHTML = `<div><strong>${esc(s.name)}</strong><div style="color:var(--muted)">Айлар: ${s.months ? s.months.length : 0}</div></div>`;
     el.addEventListener('click', ()=>{ current.subjectId = s.id; current.monthId = null; current.weekId = null; saveLast(); renderMain(); });
     subjectsList.appendChild(el);
   });
-  // small hint for editor: manage subjects
   if(isEditor){ const manage = document.createElement('div'); manage.style.marginTop='8px'; manage.innerHTML = '<button class="btn small" id="manageSubjectsBtn">Пәндерді басқару</button>'; subjectsList.appendChild(manage); document.getElementById('manageSubjectsBtn').addEventListener('click', manageSubjects); }
   }
 
-  function manageSubjects(){ // simple list with rename/delete
+  function manageSubjects(){ ensureSubjects();
     const html = data.__subjects.map(s=>`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div>${esc(s.name)}</div><div style="display:flex;gap:6px"><button class="btn ghost small" data-id="${s.id}" data-act="rename">Өңдеу</button><button class="btn ghost small" data-id="${s.id}" data-act="del">Өшіру</button></div></div>`).join('');
-    const ok = confirm('Пәндерді басқару: OK — тізім ашылады, Cancel — болдырмау'); if(!ok) return; const w = window.open('','_blank','width=520,height=620'); w.document.title='Пәндерді басқару'; w.document.body.style.background='#071022'; w.document.body.style.color='#e6eef8'; w.document.body.style.fontFamily='Inter,Arial'; w.document.body.innerHTML = `<div style="padding:12px"><h3>Пәндерді басқару</h3>${html}<div style="margin-top:12px"><button id="closeBtn">Жабу</button></div></div>`; w.document.getElementById('closeBtn').addEventListener('click', ()=> w.close()); // event handlers in popup are non-essential
+    const ok = confirm('Пәндерді басқару: OK — тізім ашылады, Cancel — болдырмау'); if(!ok) return;
+    const w = window.open('','_blank','width=520,height=620'); w.document.title='Пәндерді басқару'; w.document.body.style.background='#071022'; w.document.body.style.color='#e6eef8'; w.document.body.style.fontFamily='Inter,Arial';
+    w.document.body.innerHTML = `<div style="padding:12px"><h3>Пәндерді басқару</h3>${html}<div style="margin-top:12px"><button id="closeBtn">Жабу</button></div></div>`;
+    w.document.getElementById('closeBtn').addEventListener('click', ()=> w.close());
   }
 
-  // Main content
+  // Main content rendering functions (unchanged)
   function renderMain(){ ensureSubjects(); if(!current.subjectId){ mainContent.innerHTML = '<p style="color:var(--muted)">Пән таңдаңыз...</p>'; return; }
     const subj = data.__subjects.find(x=>x.id===current.subjectId);
     if(!subj) { current.subjectId=null; saveLast(); renderSubjects(); renderMain(); return; }
-    // header
-    let html = `<div style="display:flex;justify-content:space-between;align-items:center"><div><h2 style="margin:0">${esc(subj.name)}</h2><div style="color:var(--muted)">Айлар: ${subj.months.length}</div></div>`;
+    let html = `<div style="display:flex;justify-content:space-between;align-items:center"><div><h2 style="margin:0">${esc(subj.name)}</h2><div style="color:var(--muted)">Айлар: ${subj.months ? subj.months.length : 0}</div></div>`;
     if(isEditor) html += `<div style="display:flex;gap:8px"><button class="btn" id="addMonth">Ай қосу</button><button class="btn ghost" id="clearAll">Барлығын өшіру</button></div>`;
     html += '</div>';
-    // months
     html += '<div class="month-list" style="margin-top:12px">';
-    if(subj.months.length===0) html += '<p style="color:var(--muted)">Айлар жоқ — қосу арқылы қосыңыз.</p>';
-    subj.months.forEach((m,mi)=>{
-      html += `<div class="month-card"><div class="month-header"><div><strong>${esc(m.title)}</strong><div style="color:var(--muted)">Апталар: ${m.weeks.length}</div></div><div>`;
-
+    if(!subj.months || subj.months.length===0) html += '<p style="color:var(--muted)">Айлар жоқ — қосу арқылы қосыңыз.</p>';
+    (subj.months || []).forEach((m,mi)=>{
+      html += `<div class="month-card"><div class="month-header"><div><strong>${esc(m.title)}</strong><div style="color:var(--muted)">Апталар: ${m.weeks ? m.weeks.length : 0}</div></div><div>`;
       if(isEditor) html += `<div style="display:flex;gap:8px"><button class="btn small" data-act="addWeek" data-mid="${m.id}">Апта қосу</button><button class="btn ghost small" data-act="delMonth" data-mid="${m.id}">Айды өшіру</button></div>`;
       html += `</div></div><div class="week-list">`;
-      m.weeks.forEach((w,wi)=>{ html += `<div class="week-pill" data-mid="${m.id}" data-wid="${w.id}">${esc(w.title)}${isEditor? ' <small style="color:var(--muted)">×</small>':''}</div>`; });
+      (m.weeks || []).forEach((w,wi)=>{ html += `<div class="week-pill" data-mid="${m.id}" data-wid="${w.id}">${esc(w.title)}${isEditor? ' <small style="color:var(--muted)">×</small>':''}</div>`; });
       html += '</div></div>';
     });
     html += '</div>';
-
     mainContent.innerHTML = html;
-
-    // hook buttons
-    if(isEditor){ document.getElementById('addMonth').addEventListener('click', ()=>{ addMonth(subj.id); }); document.getElementById('clearAll').addEventListener('click', ()=>{ if(confirm('Барлық айларды өшіру?')){ subj.months=[]; saveData(); renderSubjects(); renderMain(); } }); }
-
-    // add handlers for month-level buttons
+    if(isEditor){ const addMonthBtn = document.getElementById('addMonth'); if(addMonthBtn) addMonthBtn.addEventListener('click', ()=>{ addMonth(subj.id); }); const clearBtn = document.getElementById('clearAll'); if(clearBtn) clearBtn.addEventListener('click', ()=>{ if(confirm('Барлық айларды өшіру?')){ subj.months=[]; saveData(); renderSubjects(); renderMain(); } }); }
     mainContent.querySelectorAll('[data-act="addWeek"]').forEach(btn=> btn.addEventListener('click', e=>{ const mid = e.currentTarget.dataset.mid; addWeek(subj.id, mid); }));
     mainContent.querySelectorAll('[data-act="delMonth"]').forEach(btn=> btn.addEventListener('click', e=>{ const mid = e.currentTarget.dataset.mid; if(confirm('Айды өшіру?')){ subj.months = subj.months.filter(mm=> mm.id!==mid); saveData(); renderSubjects(); renderMain(); } }));
-
-    // week click
     mainContent.querySelectorAll('.week-pill').forEach(p=> p.addEventListener('click', e=>{ const mid = p.dataset.mid; const wid = p.dataset.wid; openWeek(subj.id, mid, wid); }));
-
   }
 
-  function addMonth(subjId){ const subj = data.__subjects.find(s=>s.id===subjId); if(!subj) return; if(subj.months.length>=MAX_MONTHS) return alert('Макс ай: ' + MAX_MONTHS); const num = subj.months.length+1; const m = {id:uid('m'), title:`Ай ${num}`, weeks:[]}; subj.months.push(m); saveData(); renderSubjects(); renderMain(); }
+  function addMonth(subjId){ const subj = data.__subjects.find(s=>s.id===subjId); if(!subj) return; subj.months = subj.months || []; if(subj.months.length>=MAX_MONTHS) return alert('Макс ай: ' + MAX_MONTHS); const num = subj.months.length+1; const m = {id:uid('m'), title:`Ай ${num}`, weeks:[]}; subj.months.push(m); saveData(); renderSubjects(); renderMain(); }
+  function addWeek(subjId, monthId){ const subj = data.__subjects.find(s=>s.id===subjId); if(!subj) return; const m = (subj.months||[]).find(mm=>mm.id===monthId); if(!m) return; m.weeks = m.weeks || []; if(m.weeks.length>=MAX_WEEKS) return alert('Макс апта: ' + MAX_WEEKS); const num = m.weeks.length+1; const w = {id:uid('w'), title:`Апта ${num}`, resources:[]}; m.weeks.push(w); saveData(); renderSubjects(); renderMain(); }
 
-  function addWeek(subjId, monthId){ const subj = data.__subjects.find(s=>s.id===subjId); if(!subj) return; const m = subj.months.find(mm=>mm.id===monthId); if(!m) return; if(m.weeks.length>=MAX_WEEKS) return alert('Макс апта: ' + MAX_WEEKS); const num = m.weeks.length+1; const w = {id:uid('w'), title:`Апта ${num}`, resources:[]}; m.weeks.push(w); saveData(); renderSubjects(); renderMain(); }
-
-  function openWeek(subjId, monthId, weekId){ const subj = data.__subjects.find(s=>s.id===subjId); const m = subj.months.find(mm=>mm.id===monthId); const w = m.weeks.find(ww=>ww.id===weekId); current.subjectId = subjId; current.monthId = monthId; current.weekId = weekId; saveLast(); // render week editor/view
-    let html = `<div style="display:flex;justify-content:space-between;align-items:center"><div><h3 style="margin:0">${esc(subj.name)} — ${esc(m.title)} — ${esc(w.title)}</h3><div style="color:var(--muted)">Ресурстар: ${w.resources.length}</div></div>`;
+  function openWeek(subjId, monthId, weekId){ const subj = data.__subjects.find(s=>s.id===subjId); const m = (subj.months||[]).find(mm=>mm.id===monthId); const w = (m && m.weeks) ? m.weeks.find(ww=>ww.id===weekId) : null; if(!subj || !m || !w) return;
+    current.subjectId = subjId; current.monthId = monthId; current.weekId = weekId; saveLast();
+    let html = `<div style="display:flex;justify-content:space-between;align-items:center"><div><h3 style="margin:0">${esc(subj.name)} — ${esc(m.title)} — ${esc(w.title)}</h3><div style="color:var(--muted)">Ресурстар: ${w.resources ? w.resources.length : 0}</div></div>`;
     if(isEditor) html += `<div style="display:flex;gap:8px"><button class="btn" id="addResBtn">Ресурс қосу</button><button class="btn ghost" id="delWeekBtn">Аптаны өшіру</button></div>`;
     html += '</div>';
-    // resources list
     html += '<div style="margin-top:12px">';
-    if(w.resources.length===0) html += '<p style="color:var(--muted)">Ресурстар жоқ.</p>';
+    if(!w.resources || w.resources.length===0) html += '<p style="color:var(--muted)">Ресурстар жоқ.</p>';
     else{ html += '<div class="res-list">'; w.resources.forEach(r=>{ html += `<div class="res-item"><div><strong>${esc(r.title)}</strong><div style="color:var(--muted)">${esc(r.url)}</div></div><div style="display:flex;gap:8px"><button class="btn ghost small" data-rid="${r.id}" data-act="open">Ашу</button><button class="btn ghost small" data-rid="${r.id}" data-act="copy">Көшіру</button><button class="btn ghost small" data-rid="${r.id}" data-act="del">Өшіру</button></div></div>`; }); html += '</div>'; }
     html += '</div>';
     mainContent.innerHTML = html;
 
-    if(isEditor){ document.getElementById('addResBtn').addEventListener('click', ()=>{ const title = prompt('Ресурс атауы (немесе бос қалдыру)') || ''; const url = prompt('URL (https://...)') || ''; if(!url) return alert('URL керек'); // add
-        w.resources.push({id:uid('r'), title: title||url, url}); saveData(); openWeek(subjId, monthId, weekId); });
-      document.getElementById('delWeekBtn').addEventListener('click', ()=>{ if(confirm('Аптаны өшіру?')){ m.weeks = m.weeks.filter(ww=>ww.id!==weekId); saveData(); renderSubjects(); renderMain(); } }); }
+    if(isEditor){ const addResBtn = document.getElementById('addResBtn'); if(addResBtn) addResBtn.addEventListener('click', async ()=>{ const title = prompt('Ресурс атауы (немесе бос қалдыру)') || ''; const url = prompt('URL (https://...)') || ''; if(!url) return alert('URL керек'); w.resources = w.resources || []; w.resources.push({id:uid('r'), title: title||url, url}); await saveData(); openWeek(subjId, monthId, weekId); }); const delWeekBtn = document.getElementById('delWeekBtn'); if(delWeekBtn) delWeekBtn.addEventListener('click', ()=>{ if(confirm('Аптаны өшіру?')){ m.weeks = m.weeks.filter(ww=>ww.id!==weekId); saveData(); renderSubjects(); renderMain(); } }); }
 
-    // resource buttons
-    mainContent.querySelectorAll('[data-act="open"]').forEach(b=> b.addEventListener('click', e=>{ const rid = e.currentTarget.dataset.rid; const r = w.resources.find(rr=>rr.id===rid); if(r) window.open(r.url,'_blank'); }));
-    mainContent.querySelectorAll('[data-act="copy"]').forEach(b=> b.addEventListener('click', e=>{ const rid = e.currentTarget.dataset.rid; const r = w.resources.find(rr=>rr.id===rid); if(r){ navigator.clipboard.writeText(r.url).then(()=> alert('Сілтеме көшірілді')); } }));
-    mainContent.querySelectorAll('[data-act="del"]').forEach(b=> b.addEventListener('click', e=>{ const rid = e.currentTarget.dataset.rid; if(confirm('Ресурсты өшіру?')){ m.weeks = m.weeks.map(ww=> ww.id===m.id? ww: ww); // noop
-        w.resources = w.resources.filter(rr=> rr.id!==rid); saveData(); openWeek(subjId, monthId, weekId); } }));
+    mainContent.querySelectorAll('[data-act="open"]').forEach(b=> b.addEventListener('click', e=>{ const rid = e.currentTarget.dataset.rid; const r = (w.resources||[]).find(rr=>rr.id===rid); if(r) window.open(r.url,'_blank'); }));
+    mainContent.querySelectorAll('[data-act="copy"]').forEach(b=> b.addEventListener('click', e=>{ const rid = e.currentTarget.dataset.rid; const r = (w.resources||[]).find(rr=>rr.id===rid); if(r){ navigator.clipboard.writeText(r.url).then(()=> alert('Сілтеме көшірілді')); } }));
+    mainContent.querySelectorAll('[data-act="del"]').forEach(b=> b.addEventListener('click', e=>{ const rid = e.currentTarget.dataset.rid; if(confirm('Ресурсты өшіру?')){ w.resources = (w.resources||[]).filter(rr=> rr.id!==rid); saveData(); openWeek(subjId, monthId, weekId); } }));
   }
 
   // Search
-  searchInput.addEventListener('input', e=>{ const q = e.target.value.trim().toLowerCase(); if(!q){ renderSubjects(); renderMain(); return; } // filter subjects by month/week/resource
-    ensureSubjects(); subjectsList.innerHTML=''; data.__subjects.forEach(s=>{ // find matches
-      const match = s.name.toLowerCase().includes(q) || s.months.some(m=> m.title.toLowerCase().includes(q) || m.weeks.some(w=> w.title.toLowerCase().includes(q) || w.resources.some(r=> r.title.toLowerCase().includes(q) || r.url.toLowerCase().includes(q) )));
-      if(match){ const el = document.createElement('div'); el.className='subject-item'; el.innerHTML = `<div><strong>${esc(s.name)}</strong><div style="color:var(--muted)">Айлар: ${s.months.length}</div></div>`; el.addEventListener('click', ()=>{ current.subjectId = s.id; current.monthId=null; current.weekId=null; saveLast(); renderMain(); }); subjectsList.appendChild(el); }
+  searchInput.addEventListener('input', e=>{ const q = e.target.value.trim().toLowerCase(); if(!q){ renderSubjects(); renderMain(); return; }
+    ensureSubjects(); subjectsList.innerHTML=''; data.__subjects.forEach(s=>{ const match = s.name.toLowerCase().includes(q) || (s.months||[]).some(m=> m.title.toLowerCase().includes(q) || (m.weeks||[]).some(w=> w.title.toLowerCase().includes(q) || (w.resources||[]).some(r=> r.title.toLowerCase().includes(q) || r.url.toLowerCase().includes(q))));
+      if(match){ const el = document.createElement('div'); el.className='subject-item'; el.innerHTML = `<div><strong>${esc(s.name)}</strong><div style="color:var(--muted)">Айлар: ${s.months ? s.months.length : 0}</div></div>`; el.addEventListener('click', ()=>{ current.subjectId = s.id; current.monthId=null; current.weekId=null; saveLast(); renderMain(); }); subjectsList.appendChild(el); }
     });
   });
 
-  // Settings
-  settingsBtn.addEventListener('click', ()=>{ if(!isEditor){ alert('Тек редактор баптай алады'); return; } settingsOverlay.style.display='flex'; currentPass.value = loadPass(); });
+  // Settings handlers
+  settingsBtn.addEventListener('click', ()=>{ if(!isEditor){ alert('Тек редактор баптай алады'); return; } settingsOverlay.style.display='flex'; currentPass.value = loadPass(); updatePatStatus(); });
   closeSettings.addEventListener('click', ()=> settingsOverlay.style.display='none');
   savePassBtn.addEventListener('click', ()=>{ const np = newPass.value.trim(); if(!np) return alert('Жаңа код еңгізіңіз'); savePass(np); alert('Құпия жаңартылды'); currentPass.value = loadPass(); newPass.value=''; settingsOverlay.style.display='none'; });
 
@@ -378,14 +480,9 @@ async function saveData(){
   function updateModeLabel(){ modeLabel.textContent = isEditor ? 'Режим: редактор' : 'Режим: көру'; }
 
   // Start
-  window.addEventListener('load', ()=>{ // ensure password stored if not
-    if(!localStorage.getItem(PASS_KEY)) localStorage.setItem(PASS_KEY, DEFAULT_PASS);
-    loginOverlay.style.display='flex';
-  });
+  window.addEventListener('load', ()=>{ if(!localStorage.getItem(PASS_KEY)) localStorage.setItem(PASS_KEY, DEFAULT_PASS); loginOverlay.style.display='flex'; });
 
 })();
 </script>
 </body>
 </html>
-
-
