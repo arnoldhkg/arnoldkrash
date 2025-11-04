@@ -226,7 +226,7 @@ async function saveData(){
     const sha = sessionStorage.getItem("GITHUB_SHA");
     const body = {
       message: "update data.json via site",
-      content: btoa(JSON.stringify(data, null, 2)),
+      content: btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2)))),
       sha: sha
     };
     const res = await fetch(`https://api.github.com/repos/arnoldhkg/arnoldkrash/contents/data.json`, {
@@ -255,7 +255,15 @@ async function saveData(){
   function esc(s){ if(!s) return ''; return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c])); }
 
   // Init
-  function init(){ data = loadData(); const last = loadLast(); if(last.subjectId) current = last; renderSubjects(); updateModeLabel(); renderMain(); }
+  async function init(){
+  data = await loadData();
+  const last = loadLast();
+  if(last.subjectId) current = last;
+  renderSubjects();
+  updateModeLabel();
+  renderMain();
+}
+
 
   // Role handlers
   roleView.addEventListener('click', ()=>{ isEditor=false; loginOverlay.style.display='none'; init(); });
