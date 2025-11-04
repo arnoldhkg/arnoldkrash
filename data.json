@@ -1,8 +1,30 @@
 {
   "__subjects": [
-    {"id": "history", "name": "Тарих", "months": []},
-    {"id": "math", "name": "Математика", "months": []},
-    {"id": "cs", "name": "Информатика", "months": []},
-    {"id": "ms", "name": "МС", "months": []}
+    {
+      "id": "history",
+      "name": "Тарих",
+      "months": []
+    },
+    {
+      "id": "math",
+      "name": "Математика",
+      "months": []
+    },
+    {
+      "id": "cs",
+      "name": "Информатика",
+      "months": []
+    },
+    {
+      "id": "ms",
+      "name": "МС",
+      "months": [
+        {
+          "id": "m_yqchoe9",
+          "title": "Ай 1",
+          "weeks": []
+        }
+      ]
+    }
   ]
 }
