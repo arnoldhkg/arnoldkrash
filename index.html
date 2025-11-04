@@ -3,279 +3,510 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>JUZ40TAR — Сандық қор</title>
+  <title>Сандық қор — Жеке</title>
   <style>
-    :root{--bg:#0f1724;--card:#0b1220;--muted:#9aa4b2;--accent:#4f46e5;--glass:rgba(255,255,255,0.03);color-scheme:dark}
+    :root{
+      --bg:#0f1724; --card:#0b1220; --muted:#9aa4b2; --accent:#4f46e5;
+      --glass: rgba(255,255,255,0.03);
+      color-scheme: dark;
+    }
     *{box-sizing:border-box}
-    html,body,#app{height:100%;margin:0;font-family:Inter,system-ui,Roboto,Arial}
-    body{background:linear-gradient(180deg,#071021 0%,#061426 100%);color:#e6eef8}
-    header{display:flex;align-items:center;justify-content:space-between;padding:12px 20px}
+    html,body,#app{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial}
+    body{background:linear-gradient(180deg,#071021 0%, #061426 100%);color:#e6eef8}
+    header{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:transparent}
     header h1{font-size:18px;margin:0}
-    .btn{background:var(--accent);color:white;padding:8px 12px;border-radius:8px;border:0;cursor:pointer;font-size:13px}
+    .wrap{height:calc(100% - 56px);display:flex;align-items:stretch}
+    /* Grid of 4 full-screen-ish blocks */
+    .grid{display:grid;grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(2,1fr);gap:12px;padding:20px;width:100%}
+    .card{display:flex;align-items:center;justify-content:center;border-radius:12px;padding:20px;cursor:pointer;position:relative;overflow:hidden;min-height:calc(50vh - 46px)}
+    .card h2{margin:0;font-size:28px;text-align:center}
+    .card .desc{margin-top:8px;color:var(--muted);font-size:13px;text-align:center}
+    .card:hover{transform:scale(1.02);transition:transform .18s}
+    /* colors */
+    .history{background:linear-gradient(135deg,#7b2ff7 0%, #3a8dff 100%);}
+    .math{background:linear-gradient(135deg,#f97316 0%, #f43f5e 100%);}
+    .cs{background:linear-gradient(135deg,#06b6d4 0%, #10b981 100%);}
+    .ms{background:linear-gradient(135deg,#ef4444 0%, #f59e0b 100%);}
+    /* Subject view */
+    .subject-view{display:none;flex-direction:row;height:100%;width:100%}
+    .sidebar{width:320px;background:var(--card);padding:16px;border-radius:12px;margin:20px;overflow:auto}
+    .main{flex:1;background:transparent;padding:20px;margin:20px;overflow:auto}
+    .topic{background:var(--glass);padding:10px;border-radius:8px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+    .topic .title{font-weight:600}
+    .topic small{color:var(--muted)}
+    .btn{background:var(--accent);color:white;padding:8px 12px;border-radius:8px;border:0;cursor:pointer}
     .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06)}
-    .small{padding:6px 8px;font-size:12px}
-
-    .wrap{height:calc(100% - 56px);display:flex;gap:12px;padding:20px}
-    .sidebar{width:300px;background:var(--card);padding:14px;border-radius:12px;overflow:auto}
-    .main{flex:1;background:transparent;padding:14px;border-radius:12px;overflow:auto}
-
-    .subject-item{padding:10px;border-radius:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;transition:transform .15s, box-shadow .15s}
-    .subject-item:hover{transform:scale(1.02);box-shadow:0 0 8px rgba(255,255,255,0.08)}
-    .subject-item strong{display:block}
-    .subject-item[data-name="Тарих"]{background:#ff3300;color:#fff}
-    .subject-item[data-name="Математика"]{background:#0008ff;color:#fff}
-    .subject-item[data-name="Информатика"]{background:#00878a;color:#fff}
-    .subject-item[data-name="МС"]{background:#00ffee;color:#000}
-
-    .month-list{display:flex;flex-direction:column;gap:8px}
-    .month-card{background:rgba(255,255,255,0.02);padding:12px;border-radius:10px;display:flex;flex-direction:column}
-    .month-header{display:flex;justify-content:space-between;align-items:center}
-    .week-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
-    .week-pill{background:rgba(255,255,255,0.03);padding:6px 10px;border-radius:8px;cursor:pointer}
-
-    .res-item{background:rgba(0,0,0,0.2);padding:8px;border-radius:8px;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap}
-    .res-item>div:first-child{flex:1 1 auto;min-width:180px;word-wrap:break-word;overflow-wrap:anywhere}
-    .res-item>div:last-child{flex-shrink:0;display:flex;gap:6px}
-
+    form{display:flex;flex-direction:column;gap:8px}
+    input,textarea,select{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.04);color:inherit;padding:8px;border-radius:8px}
+    label{font-size:13px;color:var(--muted)}
+    .res-list{margin-top:10px}
+    .res-item{padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+    .controls{display:flex;gap:8px}
+    .topbar{display:flex;gap:8px;align-items:center;margin-bottom:12px}
     footer{padding:12px 20px;color:var(--muted);font-size:13px}
+    .hidden{display:none}
+    /* small screens */
+    @media (max-width:720px){
+      .grid{grid-template-columns:1fr;grid-template-rows:repeat(4,1fr);}
+      .sidebar{width:100%;margin:12px 0}
+      .main{margin:12px 0}
+      .wrap{flex-direction:column}
+    }
+    a.link{color:inherit;text-decoration:underline}
+    .search{width:100%;padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.03)}
+    .json-area{height:180px;font-family:monospace;background:rgba(0,0,0,0.3);padding:8px;border-radius:8px;color:#e6eef8}
   </style>
 </head>
 <body>
   <header>
-    <h1>JUZ40TAR — Сандық қор</h1>
+    <h1>Сандық қор — жеке (localStorage)</h1>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn" id="exportBtn" title="Экспорт">Экспорт JSON</button>
+      <button class="btn ghost" id="importBtn" title="Импорт">Импорт JSON</button>
+      <button class="btn ghost" id="backHome" style="display:none">Басты бет</button>
+    </div>
   </header>
 
   <div class="wrap" id="app">
-    <aside class="sidebar">
-      <label>Пәндер</label>
-      <div id="subjectsList"></div>
-      <hr style="opacity:0.06;margin:12px 0"/>
-      <button class="btn small" id="addSubjectBtn">Пән қосу</button>
-    </aside>
-
-    <main class="main">
-      <div id="mainContent">
-        <p style="color:var(--muted)">Алдымен пәнді таңдаңыз (немесе жаңа пән қосыңыз).</p>
+    <div class="grid" id="homeGrid">
+      <div class="card history" data-subject="history">
+        <div>
+          <h2>Тарих</h2>
+          <div class="desc">VI–XVII ғасырлықтардан бастап...</div>
+        </div>
       </div>
-    </main>
+      <div class="card math" data-subject="math">
+        <div>
+          <h2>Математика</h2>
+          <div class="desc">Алгебра, геометрия, есептер</div>
+        </div>
+      </div>
+      <div class="card cs" data-subject="cs">
+        <div>
+          <h2>Информатика</h2>
+          <div class="desc">Python, Web, теория</div>
+        </div>
+      </div>
+      <div class="card ms" data-subject="ms">
+        <div>
+          <h2>МС</h2>
+          <div class="desc">Мамандық / қосымша материалдар</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="subject-view" id="subjectView">
+      <div class="sidebar">
+        <div class="topbar">
+          <input id="searchInput" class="search" placeholder="Тақырыптарды іздеу..." />
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <button class="btn" id="addTopicBtn">Тақырып қосу</button>
+          <button class="btn ghost" id="clearSubj">Барлығын өшіру</button>
+        </div>
+        <div id="topicsList"></div>
+      </div>
+
+      <div class="main">
+        <div id="subjectHeader"><h2></h2><p id="subjectDesc" style="color:var(--muted)"></p></div>
+        <div id="topicEditor" class="hidden">
+          <h3 id="editorTitle">Тақырып қосу</h3>
+          <form id="topicForm">
+            <label>Тақырып атауы</label>
+            <input id="topicTitle" required />
+            <label>Қысқаша сипаттама</label>
+            <textarea id="topicDesc" rows="3"></textarea>
+            <label>Ресурстар (бірнеше қосуға болады)</label>
+            <div id="resourcesContainer"></div>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <select id="resType"><option value="link">Сілтеме</option><option value="video">Видео (YouTube)</option></select>
+              <input id="resTitle" placeholder="Ресурстың атауы (мыс: Бейне 1)" />
+              <input id="resUrl" placeholder="URL (https://... немесе YouTube сілтемесі)" />
+              <button class="btn" id="addResBtn" type="button">Қосу</button>
+            </div>
+            <div id="resList" class="res-list"></div>
+            <div style="display:flex;gap:8px;margin-top:12px">
+              <button class="btn" type="submit">Сақтау</button>
+              <button class="btn ghost" id="cancelEdit" type="button">Бас тарту</button>
+            </div>
+          </form>
+        </div>
+
+        <div id="topicViewArea">
+          <p class="hidden" id="noTopics">Бұл пәнде тақырыптар әлі жоқ — жаңа тақырып қосып көр.</p>
+          <div id="topicContent"></div>
+        </div>
+
+        <hr style="opacity:0.06;margin:18px 0"/>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn ghost" id="importJsonBtn">Импорттан қою (JSON)</button>
+          <button class="btn ghost" id="exportJsonBtn">Барлығын көру (JSON)</button>
+        </div>
+        <div id="jsonModal" class="hidden" style="margin-top:12px">
+          <label>JSON (импорт/экспорт)</label>
+          <textarea id="jsonArea" class="json-area"></textarea>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn" id="applyJson">Қолдану</button>
+            <button class="btn ghost" id="closeJson">Жабу</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
   </div>
 
-  <footer>Барлық деректер Firebase арқылы онлайн сақталады.</footer>
+  <footer>Жеке сайт — деректер тек браузерге сақталады (localStorage). Пароль жоқ.</footer>
 
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
-  import { getDatabase, ref, set, get } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyAoPj6LGIP0JsGzDDh15dL9kphrpfxvkaI",
-    authDomain: "arnoldhkg.firebaseapp.com",
-    projectId: "arnoldhkg",
-    storageBucket: "arnoldhkg.firebasestorage.app",
-    messagingSenderId: "766389299991",
-    appId: "1:766389299991:web:ee2a34132688ddf6496552",
-    measurementId: "G-0EWS9XWPV6"
+<script>
+(() => {
+  // Initial subjects and friendly names
+  const SUBJECTS = {
+    history:{name:'Тарих', key:'history', desc:'Тарих тақырыптары'},
+    math:{name:'Математика', key:'math', desc:'Математика тақырыптары'},
+    cs:{name:'Информатика', key:'cs', desc:'Информатика және бағдарламалау'},
+    ms:{name:'МС', key:'ms', desc:'Қосымша материалдар'}
   };
 
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
+  // Utility: generate id
+  const uid = (p='id') => p + '_' + Math.random().toString(36).slice(2,9);
 
-  const subjectsList = document.getElementById('subjectsList');
-  const mainContent = document.getElementById('mainContent');
-  const addSubjectBtn = document.getElementById('addSubjectBtn');
-  let current = { subjectId: null };
+  // Elements
+  const homeGrid = document.getElementById('homeGrid');
+  const subjectView = document.getElementById('subjectView');
+  const backHome = document.getElementById('backHome');
+  const exportBtn = document.getElementById('exportBtn');
+  const importBtn = document.getElementById('importBtn');
+  const addTopicBtn = document.getElementById('addTopicBtn');
+  const topicsList = document.getElementById('topicsList');
+  const subjectHeader = document.getElementById('subjectHeader');
+  const subjectDesc = document.getElementById('subjectDesc');
+  const topicViewArea = document.getElementById('topicViewArea');
+  const topicContent = document.getElementById('topicContent');
+  const topicEditor = document.getElementById('topicEditor');
+  const topicForm = document.getElementById('topicForm');
+  const editorTitle = document.getElementById('editorTitle');
+  const topicTitle = document.getElementById('topicTitle');
+  const topicDesc = document.getElementById('topicDesc');
+  const resList = document.getElementById('resList');
+  const resType = document.getElementById('resType');
+  const resTitle = document.getElementById('resTitle');
+  const resUrl = document.getElementById('resUrl');
+  const addResBtn = document.getElementById('addResBtn');
+  const cancelEdit = document.getElementById('cancelEdit');
+  const clearSubj = document.getElementById('clearSubj');
+  const searchInput = document.getElementById('searchInput');
 
-  function uid(){return Math.random().toString(36).slice(2,9)}
+  const exportJsonBtn = document.getElementById('exportJsonBtn');
+  const importJsonBtn = document.getElementById('importJsonBtn');
+  const jsonModal = document.getElementById('jsonModal');
+  const jsonArea = document.getElementById('jsonArea');
+  const applyJson = document.getElementById('applyJson');
+  const closeJson = document.getElementById('closeJson');
+  const noTopics = document.getElementById('noTopics');
 
-  // Загрузка данных из Firebase или импорт из localStorage
-  async function loadSubjects(){
-    const snapshot = await get(ref(db, 'subjects'));
-    if(snapshot.exists()) return snapshot.val();
+  let currentSubject = null;
+  let editingTopicId = null;
+  let currentResources = [];
 
-    // Если Firebase пуст, проверяем localStorage
-    const localData = JSON.parse(localStorage.getItem('juz40tar_data_v1') || '{}');
-    let subjects = {};
-    if(localData.__subjects){
-      localData.__subjects.forEach(s=>{
-        subjects[s.id] = { id: s.id, name: s.name, months:{} };
-        s.months.forEach(m=>{
-          subjects[s.id].months[m.id] = { id: m.id, title:m.title, weeks:{} };
-          m.weeks.forEach(w=>{
-            subjects[s.id].months[m.id].weeks[w.id] = { id: w.id, title: w.title, resources:{} };
-            w.resources.forEach(r=>{
-              subjects[s.id].months[m.id].weeks[w.id].resources[r.id] = r;
-            });
-          });
+  // --- Storage helpers ---
+  function loadAll(){
+    try{
+      const raw = localStorage.getItem('san_dyq_data_v1');
+      if(!raw) {
+        // initialize empty subjects
+        const base = {};
+        Object.keys(SUBJECTS).forEach(k=> base[k]=[]);
+        localStorage.setItem('san_dyq_data_v1', JSON.stringify(base));
+        return base;
+      }
+      return JSON.parse(raw);
+    }catch(e){ console.error(e); return {} }
+  }
+  function saveAll(obj){
+    localStorage.setItem('san_dyq_data_v1', JSON.stringify(obj));
+  }
+
+  function getSubjectData(sub){
+    const all = loadAll();
+    return all[sub] || [];
+  }
+  function setSubjectData(sub, arr){
+    const all = loadAll();
+    all[sub] = arr;
+    saveAll(all);
+  }
+
+  // --- Home grid click ---
+  homeGrid.addEventListener('click', e=>{
+    const card = e.target.closest('.card');
+    if(!card) return;
+    const subj = card.dataset.subject;
+    openSubject(subj);
+  });
+
+  backHome.addEventListener('click', ()=> showHome());
+
+  exportBtn.addEventListener('click', ()=>{
+    // quick export file download
+    const blob = new Blob([JSON.stringify(loadAll(),null,2)],{type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'san_dyq_export.json'; a.click();
+    URL.revokeObjectURL(url);
+  });
+  importBtn.addEventListener('click', ()=>{
+    jsonModal.classList.remove('hidden'); jsonArea.value = '';
+  });
+
+  // open subject view
+  function openSubject(sub){
+    currentSubject = sub;
+    document.querySelectorAll('.card').forEach(c=> c.style.filter='brightness(.9)');
+    subjectView.style.display = 'flex'; document.getElementById('homeGrid').style.display='none';
+    backHome.style.display='inline-block';
+    document.getElementById('subjectView').scrollTop = 0;
+    subjectHeader.querySelector('h2').textContent = SUBJECTS[sub].name;
+    subjectDesc.textContent = SUBJECTS[sub].desc;
+    renderTopics();
+  }
+  function showHome(){
+    subjectView.style.display = 'none'; document.getElementById('homeGrid').style.display='grid';
+    backHome.style.display='none'; currentSubject = null; editingTopicId = null; hideEditor();
+  }
+
+  function renderTopics(filter=''){
+    topicsList.innerHTML='';
+    topicContent.innerHTML='';
+    const arr = getSubjectData(currentSubject);
+    const list = arr.filter(t=> t.title.toLowerCase().includes(filter.toLowerCase()) || (t.desc||'').toLowerCase().includes(filter.toLowerCase()));
+    if(list.length===0) noTopics.classList.remove('hidden'); else noTopics.classList.add('hidden');
+
+    list.forEach(t=>{
+      const el = document.createElement('div'); el.className='topic';
+      el.innerHTML = `<div><div class="title">${escapeHtml(t.title)}</div><small>${escapeHtml(t.desc||'')}</small></div>
+      <div class="controls">
+        <button class="btn ghost" data-id="${t.id}" data-action="open">Ашу</button>
+        <button class="btn" data-id="${t.id}" data-action="edit">Өңдеу</button>
+        <button class="btn ghost" data-id="${t.id}" data-action="del">Өшіру</button>
+      </div>`;
+      topicsList.appendChild(el);
+    });
+
+    // topic content area: show first topic by default
+    if(list.length>0){
+      showTopic(list[0].id);
+    }else{
+      topicContent.innerHTML='';
+    }
+  }
+
+  // click handlers in topicsList (delegation)
+  topicsList.addEventListener('click', e=>{
+    const btn = e.target.closest('button');
+    if(!btn) return;
+    const id = btn.dataset.id, action = btn.dataset.action;
+    if(action==='open') showTopic(id);
+    if(action==='edit') startEditTopic(id);
+    if(action==='del') deleteTopic(id);
+  });
+
+  function showTopic(id){
+    const arr = getSubjectData(currentSubject);
+    const t = arr.find(x=>x.id===id); if(!t) return;
+    // render content
+    topicContent.innerHTML = `<h3>${escapeHtml(t.title)}</h3><p style="color:var(--muted)">${escapeHtml(t.desc||'')}</p>`;
+    if(t.resources && t.resources.length){
+      const ul = document.createElement('div');
+      t.resources.forEach(r=>{
+        const node = document.createElement('div'); node.className='res-item';
+        const left = document.createElement('div');
+        left.innerHTML = `<strong>${escapeHtml(r.title||r.url)}</strong><div style="color:var(--muted);font-size:13px">${escapeHtml(r.type)}</div>`;
+        const right = document.createElement('div');
+        const openBtn = document.createElement('button'); openBtn.className='btn ghost'; openBtn.textContent='Ашу';
+        openBtn.addEventListener('click', ()=> openResource(r));
+        const delBtn = document.createElement('button'); delBtn.className='btn'; delBtn.textContent='Өшіру';
+        delBtn.addEventListener('click', ()=> {
+          if(!confirm('Ресурсты өшіресің бе?')) return;
+          removeResourceFromTopic(id, r.id);
         });
+        right.appendChild(openBtn); right.appendChild(delBtn);
+        node.appendChild(left); node.appendChild(right);
+        ul.appendChild(node);
       });
+      topicContent.appendChild(ul);
     } else {
-      // Если localStorage пуст, создаем стандартные предметы
-      subjects = {
-        history: { id:'history', name:'Тарих', months:{} },
-        math: { id:'math', name:'Математика', months:{} },
-        cs: { id:'cs', name:'Информатика', months:{} },
-        ms: { id:'ms', name:'МС', months:{} }
-      };
+      const p = document.createElement('p'); p.style.color='var(--muted)'; p.textContent='Ресурстар жоқ.';
+      topicContent.appendChild(p);
     }
-
-    await set(ref(db,'subjects'), subjects);
-    return subjects;
   }
 
-  async function saveSubjects(data){
-    await set(ref(db,'subjects'), data);
-  }
-
-  async function renderSubjects(){
-    const data = await loadSubjects();
-    subjectsList.innerHTML = '';
-    Object.entries(data).forEach(([key, s])=>{
-      const e = document.createElement('div');
-      e.className = 'subject-item';
-      e.dataset.name = s.name;
-      e.innerHTML = `<div><strong>${s.name}</strong><div style="color:var(--muted)">Айлар: ${Object.keys(s.months).length}</div></div>`;
-
-      const btns = document.createElement('div');
-      const del = document.createElement('button');
-      del.textContent = 'Өшіру';
-      del.className = 'btn ghost small';
-      del.onclick = async ev=>{
-        ev.stopPropagation();
-        if(confirm(`"${s.name}" пәнін өшіру?`)){
-          delete data[key];
-          await saveSubjects(data);
-          renderSubjects();
-          mainContent.innerHTML="<p style='color:var(--muted)'>Пән өшірілді.</p>";
-        }
-      };
-      btns.appendChild(del);
-      e.appendChild(btns);
-      e.onclick = ()=>{ current.subjectId = key; renderMain(); };
-      subjectsList.appendChild(e);
-    });
-  }
-
-  addSubjectBtn.onclick = async ()=>{
-    const name = prompt('Пән атауы')||'';
-    if(!name) return;
-    const data = await loadSubjects();
-    const id = uid();
-    data[id] = { id, name, months:{} };
-    await saveSubjects(data);
-    renderSubjects();
-  }
-
-  async function renderMain(){
-    if(!current.subjectId){ mainContent.innerHTML='<p style="color:var(--muted)">Пән таңдаңыз...</p>'; return; }
-    const data = await loadSubjects();
-    const subj = data[current.subjectId];
-    let html = `<div style="display:flex;justify-content:space-between;align-items:center"><h2>${subj.name}</h2><button class='btn' id='addMonth'>Ай қосу</button></div>`;
-    html += '<div class="month-list">';
-    if(Object.keys(subj.months).length===0) html+='<p style="color:var(--muted)">Ай жоқ</p>';
-    Object.entries(subj.months).forEach(([mid, m])=>{
-      html += `<div class='month-card'><div class='month-header'><strong>${m.title}</strong><button class='btn ghost small' data-mid='${mid}' data-act='delMonth'>Өшіру</button></div><div class='week-list'>`;
-      Object.entries(m.weeks||{}).forEach(([wid, w])=>{
-        html += `<div class='week-pill' data-mid='${mid}' data-wid='${wid}'>${w.title}</div>`;
-      });
-      html += `<button class='btn small' data-act='addWeek' data-mid='${mid}'>Апта қосу</button>`;
-      html += '</div></div>';
-    });
-    html += '</div>';
-    mainContent.innerHTML = html;
-
-    document.getElementById('addMonth').onclick = async ()=>{
-      if(Object.keys(subj.months).length>=7) return alert('Макс ай');
-      const mId = uid();
-      subj.months[mId] = { id: mId, title:'Ай '+(Object.keys(subj.months).length+1), weeks:{} };
-      await saveSubjects(data);
-      renderMain();
-    };
-
-    mainContent.querySelectorAll('[data-act=addWeek]').forEach(b=>{
-      b.onclick = async e=>{
-        const mid = e.target.dataset.mid;
-        const m = subj.months[mid];
-        if(Object.keys(m.weeks||{}).length>=4) return alert('Макс апта');
-        if(!m.weeks) m.weeks = {};
-        const wId = uid();
-        m.weeks[wId] = { id: wId, title:'Апта '+(Object.keys(m.weeks).length+1), resources:{} };
-        await saveSubjects(data);
-        renderMain();
+  function openResource(r){
+    if(r.type==='link') window.open(r.url, '_blank');
+    else if(r.type==='video'){
+      // try to extract youtube id and open embed modal (simple)
+      const vid = extractYoutubeId(r.url);
+      if(vid){
+        // open quick modal with iframe
+        const modal = document.createElement('div');
+        modal.style.position='fixed'; modal.style.inset=0; modal.style.display='flex'; modal.style.alignItems='center'; modal.style.justifyContent='center';
+        modal.style.background='rgba(0,0,0,0.6)'; modal.style.zIndex=9999;
+        modal.innerHTML = `<div style="width:90%;max-width:900px;background:#071022;padding:12px;border-radius:8px"><div style="display:flex;justify-content:space-between;align-items:center"><strong>Видео</strong><button id="closevid" class="btn ghost">Жабу</button></div><div style="margin-top:8px"><iframe width="100%" height="480" src="https://www.youtube.com/embed/${vid}" frameborder="0" allowfullscreen></iframe></div></div>`;
+        document.body.appendChild(modal);
+        modal.querySelector('#closevid').addEventListener('click', ()=> modal.remove());
+      } else {
+        window.open(r.url, '_blank');
       }
-    });
-
-    mainContent.querySelectorAll('[data-act=delMonth]').forEach(b=>{
-      b.onclick = async e=>{
-        const mid = e.target.dataset.mid;
-        if(confirm('Өшіру?')){
-          delete subj.months[mid];
-          await saveSubjects(data);
-          renderMain();
-        }
-      }
-    });
-
-    mainContent.querySelectorAll('.week-pill').forEach(p=>{
-      p.onclick = ()=> openWeek(subj.id, p.dataset.mid, p.dataset.wid);
-    });
-  }
-
-  async function openWeek(sid, mid, wid){
-    const data = await loadSubjects();
-    const subj = data[sid];
-    const m = subj.months[mid];
-    const w = m.weeks[wid];
-    if(!w.resources) w.resources = {};
-    let html = `<div style='display:flex;justify-content:space-between;align-items:center'><h3>${subj.name} — ${m.title} — ${w.title}</h3><button class='btn' id='addResBtn'>Ресурс қосу</button></div>`;
-    html += '<div class="res-list">';
-    if(Object.keys(w.resources).length===0) html+='<p style="color:var(--muted)">Ресурстар жоқ</p>';
-    Object.entries(w.resources).forEach(([rid, r])=>{
-      html += `<div class='res-item'><div><strong>${r.title}</strong><div style='color:var(--muted)'>${r.url}</div></div>
-      <div>
-        <button class='btn ghost small' data-rid='${rid}' data-act='open'>Ашу</button>
-        <button class='btn ghost small' data-rid='${rid}' data-act='copy'>Көшіру</button>
-        <button class='btn ghost small' data-rid='${rid}' data-act='del'>Өшіру</button>
-      </div></div>`;
-    });
-    html += '</div>';
-    mainContent.innerHTML = html;
-
-    document.getElementById('addResBtn').onclick = async ()=>{
-      const t = prompt('Атауы')||'';
-      const u = prompt('Сілтеме (https://...)');
-      if(!u) return;
-      const rId = uid();
-      w.resources[rId] = { id: rId, title: t||u, url: u };
-      await saveSubjects(data);
-      openWeek(sid, mid, wid);
+    } else {
+      window.open(r.url, '_blank');
     }
+  }
 
-    mainContent.querySelectorAll('[data-act=open]').forEach(b=>{
-      b.onclick = e=>{
-        const r = w.resources[e.target.dataset.rid];
-        window.open(r.url,'_blank');
+  // add topic
+  addTopicBtn.addEventListener('click', ()=> {
+    editingTopicId = null; currentResources = []; editorTitle.textContent='Жаңа тақырып қосу'; topicForm.reset(); resList.innerHTML=''; topicEditor.classList.remove('hidden');
+  });
+  cancelEdit.addEventListener('click', ()=> hideEditor());
+
+  topicForm.addEventListener('submit', e=>{
+    e.preventDefault();
+    const title = topicTitle.value.trim(); if(!title) return alert('Атауды жаз!');
+    const desc = topicDesc.value.trim();
+    const arr = getSubjectData(currentSubject);
+    if(editingTopicId){
+      // update existing
+      const idx = arr.findIndex(x=>x.id===editingTopicId);
+      if(idx>=0){
+        arr[idx].title = title; arr[idx].desc = desc; arr[idx].resources = currentResources;
+        setSubjectData(currentSubject, arr);
       }
-    });
-    mainContent.querySelectorAll('[data-act=copy]').forEach(b=>{
-      b.onclick = e=>{
-        const r = w.resources[e.target.dataset.rid];
-        navigator.clipboard.writeText(r.url);
-        alert('Көшірілді');
-      }
-    });
-    mainContent.querySelectorAll('[data-act=del]').forEach(b=>{
-      b.onclick = async e=>{
-        const rid = e.target.dataset.rid;
-        if(confirm('Өшіру?')){
-          delete w.resources[rid];
-          await saveSubjects(data);
-          openWeek(sid, mid, wid);
-        }
-      }
+    } else {
+      const t = {id: uid('t'), title, desc, resources: currentResources.slice()};
+      arr.unshift(t);
+      setSubjectData(currentSubject, arr);
+    }
+    hideEditor(); renderTopics(searchInput.value||'');
+  });
+
+  // resource add
+  addResBtn.addEventListener('click', ()=>{
+    const type = resType.value, title = resTitle.value.trim(), url = resUrl.value.trim();
+    if(!url) return alert('URL жазыңыз');
+    const r = {id: uid('r'), type, title: title||url, url};
+    currentResources.push(r);
+    renderResList();
+    resTitle.value=''; resUrl.value='';
+  });
+
+  function renderResList(){
+    resList.innerHTML='';
+    currentResources.forEach(r=>{
+      const el = document.createElement('div'); el.className='res-item';
+      el.innerHTML = `<div><strong>${escapeHtml(r.title)}</strong><div style="font-size:12px;color:var(--muted)">${escapeHtml(r.type)} — ${escapeHtml(r.url)}</div></div>
+      <div style="display:flex;gap:8px"><button class="btn ghost" data-id="${r.id}" data-action="open">Ашу</button><button class="btn ghost" data-id="${r.id}" data-action="del">Өшіру</button></div>`;
+      resList.appendChild(el);
     });
   }
 
-  window.onload = ()=>{ renderSubjects(); renderMain(); }
+  resList.addEventListener('click', e=>{
+    const btn = e.target.closest('button'); if(!btn) return;
+    const id = btn.dataset.id, action = btn.dataset.action;
+    if(action==='open') {
+      const r = currentResources.find(x=>x.id===id); if(r) openResource(r);
+    }
+    if(action==='del') {
+      if(!confirm('Ресурсты шынымен өшіресің бе?')) return;
+      currentResources = currentResources.filter(x=>x.id!==id);
+      renderResList();
+    }
+  });
+
+  function startEditTopic(id){
+    const arr = getSubjectData(currentSubject);
+    const t = arr.find(x=>x.id===id); if(!t) return;
+    editingTopicId = id; editorTitle.textContent='Тақырыпты өңдеу';
+    topicTitle.value = t.title; topicDesc.value = t.desc||'';
+    currentResources = (t.resources||[]).map(x=>Object.assign({},x));
+    renderResList();
+    topicEditor.classList.remove('hidden');
+  }
+
+  function hideEditor(){
+    topicEditor.classList.add('hidden');
+    topicForm.reset(); resList.innerHTML=''; currentResources=[]; editingTopicId=null;
+  }
+
+  function deleteTopic(id){
+    if(!confirm('Тақырыпты өшіресің бе?')) return;
+    const arr = getSubjectData(currentSubject).filter(x=>x.id!==id);
+    setSubjectData(currentSubject, arr); renderTopics(searchInput.value||'');
+  }
+
+  function removeResourceFromTopic(topicId, resId){
+    const arr = getSubjectData(currentSubject);
+    const idx = arr.findIndex(x=>x.id===topicId); if(idx<0) return;
+    arr[idx].resources = (arr[idx].resources||[]).filter(r=>r.id!==resId);
+    setSubjectData(currentSubject, arr); renderTopics(searchInput.value||'');
+    showTopic(topicId);
+  }
+
+  clearSubj.addEventListener('click', ()=>{
+    if(!confirm('Бұл пәндегі барлық тақырыптарды өшіресің бе?')) return;
+    setSubjectData(currentSubject, []); renderTopics();
+  });
+
+  searchInput.addEventListener('input', e=> renderTopics(e.target.value));
+
+  // JSON import/export modal
+  exportJsonBtn.addEventListener('click', ()=>{
+    jsonModal.classList.remove('hidden');
+    jsonArea.value = JSON.stringify(loadAll(), null, 2);
+  });
+  importJsonBtn.addEventListener('click', ()=>{
+    jsonModal.classList.remove('hidden'); jsonArea.value = '';
+  });
+  closeJson.addEventListener('click', ()=> jsonModal.classList.add('hidden'));
+  applyJson.addEventListener('click', ()=>{
+    try{
+      const parsed = JSON.parse(jsonArea.value);
+      // basic validation: must have keys for subjects
+      Object.keys(SUBJECTS).forEach(k=>{ if(!parsed[k]) parsed[k]=[] });
+      saveAll(parsed); jsonModal.classList.add('hidden');
+      if(currentSubject) renderTopics();
+      alert('JSON қолданылды және сақталды.');
+    }catch(e){ alert('Қате JSON: ' + e.message) }
+  });
+
+  // Helper: extract youtube id
+  function extractYoutubeId(url){
+    if(!url) return null;
+    const m = url.match(/(?:v=|\/embed\/|\.be\/)([A-Za-z0-9_-]{6,})/);
+    return m ? m[1] : null;
+  }
+
+  // Escape HTML
+  function escapeHtml(s){ if(!s) return ''; return s.replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c])); }
+
+  // remove resource from currentResources by id - helper not used above
+  function removeFromCurrent(rid){
+    currentResources = currentResources.filter(x=>x.id!==rid);
+    renderResList();
+  }
+
+  // simple utility to saveAll
+  function saveAll(obj){
+    localStorage.setItem('san_dyq_data_v1', JSON.stringify(obj));
+  }
+
+  // Initialize: ensure key exists
+  (function init(){
+    const all = loadAll(); Object.keys(SUBJECTS).forEach(k=>{ if(!all[k]) all[k]=[]; });
+    saveAll(all);
+  })();
+
+  // For back button
+  window.showHome = showHome;
+
+})();
 </script>
-
 </body>
 </html>
